@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aiden Stevenson Bradwell</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+            crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+
+    <script src="system_backend.js"></script>
+</head>
+<body>
+<div id="main_body" style="min-height:1500px" class="px-3 py-5">
+<!--    Modal used to popup and display movie information to user-->
+    <div id="modal_wrapper">
+        <div class="modal fade" style="opacity:95%;" id="information_modal" tabindex="-1" aria-labelledby="information_modal"  aria-hidden="true">
+            <div class="modal-dialog" style="max-width: 90%; height:90%">
+                <div class="modal-content">
+                        <div class="" style="overflow-y:scroll">
+                            <div class=" w-100 ps-3" style="background-color:rgb(159,207,120)"><span id="modal_title"></span></div>
+                            <div class="img_wrapper"></div>
+                            <img id="modal_image" class="mx-auto d-block bg-secondary mt-1"
+                                 src=""
+                                 style="max-width:150px;">
+                            <div id="modal_star_div" class="mt-2 text-center" style="font-size:25px"></div>
+                            <div class="col-6 ms-auto">
+                                <table style="border-collapse:separate; border-spacing:0 15px;">
+                                    <tr class="mt-2">
+                                        <td class="ms-1 me-5"><b>Year:</b></td>
+                                        <td class="border border-3 border-dark"><span id="modal_year" contenteditable="true" style="width:400px"></span></td>
+                                    </tr>
+                                    <tr class="mt-2">
+                                        <td class="ms-1 me-5"><b>Genre:</b></td>
+                                        <td class="border border-3 border-dark"><span id="modal_genre" contenteditable="true" style="width:400px"></span></td>
+                                    </tr>
+                                    <tr class="mt-2">
+                                        <td class="ms-1 me-5"><b>Director</b></td>
+                                        <td class="border border-3 border-dark"><span id="modal_director" contenteditable="true" style="width:400px"></span></td>
+                                    </tr>
+                                    <tr class="mt-2">
+                                        <td class="ms-1 me-5"><b>Actors</b></td>
+                                        <td class="border border-3 border-dark"><span id="modal_actors" contenteditable="true"></span></td>
+                                    </tr>
+                                    <tr class="mt-2">
+                                        <td class="ms-1 me-5"><b>Plot</b></td>
+                                        <td class="border border-3 border-dark"><span id="modal_plot" contenteditable="true"></span></td>
+                                    </tr>
+                                </table>
+                                <span id="modal_id" class="d-none"></span>
+                            </div>
+                        </div>
+                    <div class="modal-footer">
+                        <a class="btn btn-info">Reset</a>
+                        <a class="btn btn-info">Save</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="text-center" style="width:300px;">
+            <div id="widget_wrapper" class="mt-4">
+                <input type="text" placeholder="Search..." id="searchbar_input" style="display: block; padding-left:15px; padding-right:15px; width:300px; height:30px; z-index:1;overflow:hidden; white-space:nowrap">
+                <span id="search-suggestion" style="font-size:12px; color:rgb(108,117,125);padding-left:15px; padding-right:15px; display: block; width:300px; height:30px; overflow:scroll; z-index:0; z-index:0;overflow:hidden; white-space:nowrap"></span>
+                <span id="suggestion-id-holder" style="display:none"></span>
+                <script>
+                // This widget works as a standard search bar with a suggestion beneath it.
+                // Previous versions had the suggestion appear behind the searched title, but these versions were not used since:
+                //    The api searches for substring matches and therefor the letters wouldn't line up correctly (made for an ugly experience)
+
+
+                // Allows for the widget to be used with different end goals
+                // Users can wire the searchbar to their custom functions
+                var enter_function = null
+                function wire_enter_function(func) {
+                  enter_function = func;
+                }
+
+                // After each change to the searchbar, check api for similar titles
+                document.getElementById("searchbar_input").addEventListener('keydown', function(event) {
+                  if (event.key == "ArrowRight" || event.key == "Tab") {
+                    event.preventDefault();   // Prevents tab from exiting out of the search bar
+                    $("#searchbar_input")[0].value = $("#search-suggestion")[0].innerText;
+                  } else if (event.key == "Enter" && enter_function != null) {
+                      enter_function();   // call generic function pointer (provided by user during initialization)
+                  }
+
+                });
+
+                document.getElementById("searchbar_input").addEventListener('keyup', function(event) {
+                  var api_val = 'https://omdbapi.com/?s=' + $("#searchbar_input")[0].value.trim().replaceAll(' ', '%20')  +'&apikey=9a518f8c'
+                  getClosestFilm(api_val)
+                });
+
+
+                // Separate function due since async declaration
+                // Ideally, this would be called with some form of timer countdown, where it waits for the user to pause typing to call the API
+                async function getClosestFilm(api_val) {
+                  const suggested_movie_resp = await fetch(api_val)
+                  .then((response) => response.json())
+                  .then((data) => {
+                      $('#search-suggestion').text(data.Search[0].Title); // choose first relevant title. This stage fails out if no movies returns
+                      $('#suggestion-id-holder').text(data.Search[0].imdbID); // store Id of suggested movie for later API calling usage
+                  })
+                  .catch(function(err) {
+                      console.log(`No Movies Found`)  // Error occurs if title has no matches
+                      $("#search-suggestion")[0].innerText = '' // Remove previous suggestion
+                  });
+                }
+              </script>
+            </div>
+            <div id="genre_wrapper" class="my-4">
+                <div id="genres">
+                    <div class="btn-group-vertical" role="group">
+                        <input type="radio" class="all_btn genre_button btn-check" name="btnradio" id="all_btn" autocomplete="off" checked
+                               onclick="filter_by_genre('ALL');">
+                        <label class="btn btn-outline-primary" for="all_btn"  style="width:300px">All</label>
+                        <input type="radio" class="genre_button btn-check" name="btnradio" id="action_btn" autocomplete="off"
+                               onclick="filter_by_genre('ACTION');">
+                        <label class="btn btn-outline-primary" for="action_btn">Action</label>
+
+                        <input type="radio" class="genre_button btn-check" name="btnradio" id="crime_btn" autocomplete="off"
+                               onclick="filter_by_genre('CRIME');">
+                        <label class="btn btn-outline-primary" for="crime_btn">Crime</label>
+
+                        <input type="radio" class="genre_button btn-check" name="btnradio" id="drama_btn" autocomplete="off"
+                               onclick="filter_by_genre('DRAMA');">
+                        <label class="btn btn-outline-primary" for="drama_btn">Drama</label>
+
+                        <input type="radio" class="btn-check" name="btnradio" id="mystery_btn" autocomplete="off"
+                               onclick="filter_by_genre('MYSTERY');">
+                        <label class="btn btn-outline-primary" for="mystery_btn">Mystery</label>
+
+                        <input type="radio" class="genre_button btn-check" name="btnradio" id="sci_fi_btn" autocomplete="off"
+                               onclick="filter_by_genre('SCI-FI');">
+                        <label class="btn btn-outline-primary" for="sci_fi_btn">Sci-Fi</label>
+
+                        <input type="radio" class="genre_button btn-check" name="btnradio" id="adventure_btn" autocomplete="off"
+                               onclick="filter_by_genre('ADVENTURE');">
+                        <label class="btn btn-outline-primary" for="adventure_btn">Adventure</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col py-4 mx-0 ps-5">
+            <div id="movie_cube_wrapper">
+                <div id="movie_cubes" class="content d-flex align-items-stretch justify-content-center flex-wrap">
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="footer" class="w-100" style="min-height:100px;"></div>
+</body>
+<script>
+        $(function() {
+
+            // initialize local movies on startup
+            generate_movie_cubes()
+
+            // this function is passed to the searchbar for its generic on-enter function pointer
+            function search_and_show() {
+               var suggestion_id = $('#suggestion-id-holder')[0].innerText;
+               get_from_storage_or_fetch(suggestion_id)
+           }
+
+            // load widget and wire enter button function
+            wire_enter_function(search_and_show)
+
+            // in a local static setting this import fails due to CORS restrictions. Instead, widget is directly implanted.
+<!--            $("#widget_wrapper").load('search_widget.html', function() {-->
+<!--                wire_enter_function(search_and_show)-->
+<!--            });-->
+        });
+</script>
+</html>

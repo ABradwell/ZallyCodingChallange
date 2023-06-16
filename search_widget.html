@@ -1,0 +1,50 @@
+<div id="widget_wrapper">
+  <input type="text" placeholder="Search..." id="searchbar_input" style="display: block; padding-left:15px; padding-right:15px; width:300px; height:30px; z-index:1;overflow:hidden; white-space:nowrap">
+  <span id="search-suggestion" style="font-size:12px; color:rgb(108,117,125);padding-left:15px; padding-right:15px; display: block; width:300px; height:30px; overflow:scroll; z-index:0; z-index:0;overflow:hidden; white-space:nowrap"></span>
+  <span id="suggestion-id-holder" style="display:none"></span>
+  <script>
+    // This widget works as a standard search bar with a suggestion beneath it.
+    // Previous versions had the suggestion appear behind the searched title, but these versions were not used since:
+    //    The api searches for substring matches and therefor the letters wouldn't line up correctly (made for an ugly experience)
+
+
+    // Allows for the widget to be used with different end goals
+    // Users can wire the searchbar to their custom functions
+    var enter_function = null
+    function wire_enter_function(func) {
+      enter_function = func;
+    }
+
+    // After each change to the searchbar, check api for similar titles
+    document.getElementById("searchbar_input").addEventListener('keydown', function(event) {
+      if (event.key == "ArrowRight" || event.key == "Tab") {
+        event.preventDefault();   // Prevents tab from exiting out of the search bar
+        $("#searchbar_input")[0].value = $("#search-suggestion")[0].innerText;
+      } else if (event.key == "Enter" && enter_function != null) {
+          enter_function();   // call generic function pointer (provided by user during initialization)
+      }
+
+    });
+
+    document.getElementById("searchbar_input").addEventListener('keyup', function(event) {
+      var api_val = 'https://omdbapi.com/?s=' + $("#searchbar_input")[0].value.trim().replaceAll(' ', '%20')  +'&apikey=9a518f8c'
+      getClosestFilm(api_val)
+    });
+
+
+    // Separate function due since async declaration
+    // Ideally, this would be called with some form of timer countdown, where it waits for the user to pause typing to call the API
+    async function getClosestFilm(api_val) {
+      const suggested_movie_resp = await fetch(api_val)
+      .then((response) => response.json())
+      .then((data) => {
+          $('#search-suggestion').text(data.Search[0].Title); // choose first relevant title. This stage fails out if no movies returns
+          $('#suggestion-id-holder').text(data.Search[0].imdbID); // store Id of suggested movie for later API calling usage
+      })
+      .catch(function(err) {
+          console.log(`No Movies Found`)  // Error occurs if title has no matches
+          $("#search-suggestion")[0].innerText = '' // Remove previous suggestion
+      });
+    }
+  </script>
+</div>
